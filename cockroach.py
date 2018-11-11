@@ -1,4 +1,4 @@
-#!/usr/bin/python3.5
+#!/usr/bin/env python3.5
 
 import requests
 import argparse
@@ -41,7 +41,7 @@ def checkAvalibleDateRange(requestParams):
 
 
 def prepareGetRequestParams():
-    recivedCmdOptions = vars(parseCmdOptions())
+    recivedCmdOptions = parseCmdOptions()
     urlParams = {}
 
     if recivedCmdOptions['action'] == 'robots':
@@ -103,7 +103,13 @@ def parseCmdOptions():
                              required=True,
                              help='Domain for which to search')
 
-    return parser.parse_args()
+    args = vars(parser.parse_args())
+
+    if args.get('action') == None:
+        parser.print_help()
+        exit(1)
+    else:
+        return  args
 
 
 async def fetch(url, session):
