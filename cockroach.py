@@ -1,44 +1,75 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.5
 
 import requests
 import argparse
 from datetime import datetime, timedelta
+import json
+import asyncio
+import aiohttp
+import async_timeout
 
-def makeRequestToArchive(apiUrl, requestParam):
+def makeRequestToArchive(urlApi, requestParams):
     try:
-        response = requests.get(apiUrl, params=requestParam)
+        response = requests.get(urlApi, params=requestParams)
+        return response.text
     except requests.exceptions.ConnectTimeout:
-        print('Oops. Connection timeout occured!')
+        print('Something went wrong:\nConnection timeout occured!')
     except requests.exceptions.ReadTimeout:
-        print('Oops. Read timeout occured')
+        print('Something went wrong:\nRead timeout occured')
     except requests.exceptions.ConnectionError:
-        print('Seems like dns lookup failed..')
-
-    return response.text
-
-def importRobots():
-    urlParam = combineUrlParam()
-    urlParam['url'] = "{}{}".format(urlParam['url'], '/robots.txt')
-    response = makeRequestToArchive(URL_API_CDX, urlParam)
-
-    return response
-
-def checkRangeOfDate():
-    urlParam = combineUrlParam()
-    makeRequestToArchive()
-
-'''Prepare URL params for 'get' request to API'''
-def prepareGetRequestParams(action):
-    recivedCmdParam = vars(parseCmdParam())
-    urlParams = {'url': '',
-                 ''}
+        print('Something went wrong:\n'
+              'Seems like dns lookup failed. Try ping {}'.format(requestParams['url']))
 
 
+def checkAvalibleDateRange(requestParams):
+    checkAval = json.loads(
+        makeRequestToArchive(URL_API_AVL, {'url': requestParams['url']})
+    )
+    if checkAval['archived_snapshots'] == {}:
+        return None
 
-    #return  urlParams
+    requestParams['limit'] = '1'
+    earliestDate = json.loads(
+        makeRequestToArchive(URL_API_CDX, requestParams)
+    )[1][0]
+    requestParams['limit'] = '-1'
+    latestDate = json.loads(
+        makeRequestToArchive(URL_API_CDX, requestParams)
+    )[1][0]
 
-'''Render help menu and parse cmd params'''
-def parseCmdParam():
+    return [earliestDate, latestDate]
+
+
+def prepareGetRequestParams():
+    recivedCmdOptions = vars(parseCmdOptions())
+    urlParams = {}
+
+    if recivedCmdOptions['action'] == 'robots':
+        urlParams['action'] = recivedCmdOptions['action']
+        urlParams['url'] = recivedCmdOptions['domain'] + '/robots.txt'
+        urlParams['from'] = recivedCmdOptions['startdate']
+        urlParams['to'] = recivedCmdOptions['enddate']
+        urlParams['fl'] = 'timestamp'
+        urlParams['filter'] = 'statuscode:200'
+        urlParams['output'] = 'json'
+    elif recivedCmdOptions['action'] == 'range':
+        urlParams['action'] = recivedCmdOptions['action']
+        urlParams['url'] = recivedCmdOptions['domain']
+        urlParams['fl'] = 'timestamp'
+        urlParams['filter'] = 'statuscode:200'
+        urlParams['output'] = 'json'
+
+    # return list of params
+    return urlParams
+
+
+def splitUrlList(urlList, chunkSize):
+    splitedList = [urlList[i:i + chunkSize] for i in range(0, len(urlList), chunkSize)]
+
+    return splitedList
+
+# Render help menu and parse cmd params
+def parseCmdOptions():
     defaultStartDate = datetime.strftime((datetime.now() - timedelta(days=365)), "%Y%m%d")
     defaultEndDate = datetime.strftime(datetime.now(), "%Y%m%d")
 
@@ -49,57 +80,97 @@ def parseCmdParam():
     robotsParser = actionSubparser.add_parser('robots', help='Get all robots.txt records for a domain')
     robotsParser.set_defaults(action='robots')
     robotsParser.add_argument('-d', '--domain',
-                        action='store',
-                        metavar='example.com',
-                        required=True,
-                        help='Domain for which to search')
-    dateRangeGroup = robotsParser.add_argument_group('Historical data range(use as a pair, only together)')
+                              action='store',
+                              metavar='example.com',
+                              required=True,
+                              help='Domain for which to search')
+    dateRangeGroup = robotsParser.add_argument_group('Historical data range(Default range: all last year)')
     dateRangeGroup.add_argument('-s', '--startdate',
-                        action='store',
-                        default=defaultStartDate,
-                        metavar='yyyymmdd',
-                        help='Start date in yyyymmdd format. For example 19700130')
+                                action='store',
+                                default=defaultStartDate,
+                                metavar='yyyymmdd',
+                                help='Start date in yyyymmdd format. For example 19700130')
     dateRangeGroup.add_argument('-e', '--enddate',
-                        action='store',
-                        default=defaultEndDate,
-                        metavar='yyyymmdd',
-                        help='End date in yyyymmdd format. For example 19700130')
+                                action='store',
+                                default=defaultEndDate,
+                                metavar='yyyymmdd',
+                                help='End date in yyyymmdd format. For example 19700130')
     rangeParser = actionSubparser.add_parser('range', help='Check available date range in history')
     rangeParser.set_defaults(action='range')
     rangeParser.add_argument('-d', '--domain',
-                        action='store',
-                        metavar='example.com',
-                        required=True,
-                        help='Domain for which to search')
+                             action='store',
+                             metavar='example.com',
+                             required=True,
+                             help='Domain for which to search')
 
     return parser.parse_args()
 
+
+async def fetch(url, session):
+    with async_timeout.timeout(10):
+        async with session.get(url) as response:
+            return await response.text()
+
+
+async def mainCycle(loop, urlList):
+    tasks = []
+    responseList = []
+    async with aiohttp.ClientSession(loop=loop) as session:
+        for i in splitUrlList(urlList, DOWNLOAD_THREAD_NUMBER):
+            for url in i:
+                task = asyncio.ensure_future(fetch(url, session))
+                tasks.append(task)
+            responses = await asyncio.gather(*tasks)
+            responseList.extend(responses)
+
+        return responseList
+
+
+# Wayback CDX Server API
 URL_API_CDX = 'http://web.archive.org/cdx/search/cdx?'
-doAction = parseCmdParam().action
+# Wayback Availability JSON API
+URL_API_AVL = 'https://archive.org/wayback/available?'
+# Five thread work fine, Additional threads blocked by API server and the download ends with an exception
+DOWNLOAD_THREAD_NUMBER = 5
 
-if doAction == 'robots':
-    prepareGetParams()
-elif doAction == 'range':
-    print('Rangers')
-    print(parseCmdParam())
+urlParams = prepareGetRequestParams()
 
+if __name__ == '__main__':
+    if urlParams['action'] == 'robots':
+        listAvalArchiveData = json.loads(
+            makeRequestToArchive(URL_API_CDX, urlParams)
+        )
 
+        if listAvalArchiveData == []:
+            print('No data was found for this domain. Verify that the domain name or date range is entered correctly.')
+            exit(1)
+        listAvalArchiveData.pop(0)
 
+        urlToFetchPattern = 'https://web.archive.org/web/{0}/{1}'
+        urlToFetchList = [urlToFetchPattern.format(x[0], urlParams['url']) for x in listAvalArchiveData]
 
+        loop = asyncio.get_event_loop()
+        recivedData = loop.run_until_complete(mainCycle(loop, urlToFetchList))
 
+        # remove duplicates
+        resultRobotsRecords = []
+        robotsRecordsUniqueSelect = set()
+        for line in recivedData:
+            for record in line.split('\n'):
+                if record in robotsRecordsUniqueSelect:
+                    continue
+                robotsRecordsUniqueSelect.add(record)
+                resultRobotsRecords.append(record)
 
+        # print records
+        for record in resultRobotsRecords:
+            print(record)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    elif urlParams['action'] == 'range':
+        response = checkAvalibleDateRange(urlParams)
+        if response != None:
+            print("For the domain {0} available data for the period:\n".format(urlParams['url']) +
+                  "Earliest date: " + response[0] + "\n" +
+                  "Latest date: " + response[1])
+        else:
+            print("There is no data in the web.archive.org for the domain {}".format(urlParams['url']))
