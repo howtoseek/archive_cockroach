@@ -37,14 +37,16 @@ Type `cockroach.py action_command -h` to view additional options.
 * **robots**  
 Get all robots.txt records for a domain
 
-**-d example.com, --domain example.com** - Domain for which to search  
+Options:  
+*-d example.com, --domain example.com* - Domain for which to search  
 
 Historical data range(Default range: all last year):  
-**-s yyyymmdd, --startdate yyyymmdd** - Start date in yyyymmdd format. For example 19700130  
-**-e yyyymmdd, --enddate yyyymmdd** - End date in yyyymmdd format. For example 19700130
+*-s yyyymmdd, --startdate yyyymmdd* - Start date in yyyymmdd format. For example 19700130  
+*-e yyyymmdd, --enddate yyyymmdd* - End date in yyyymmdd format. For example 19700130
 
 * **range**  
 Check available date range in history  
 
-**-d example.com, --domain example.com** - Domain for which to search  
+Options:  
+*-d example.com, --domain example.com* - Domain for which to search  
 
