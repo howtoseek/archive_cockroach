@@ -3,7 +3,11 @@
 
 Cockroach is a utility for retrieving and sorting historical data from a web archive. Sometimes 
 it can help in the pentest of a web application. For example, an older version of a robots.txt 
-file may contain entries about interesting directories or documents.
+file may contain entries about interesting directories or documents.  
+
+Еhe following functions are now available:  
+* **robots** - Get all unique records of robots.txt files for a specified period of time  
+* **range** - Check available date range in history for a domain  
 
 ## Install
 
