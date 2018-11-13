@@ -59,15 +59,15 @@ _For the domain example.com available data for the period:
 Earliest date: 20020120142510  
 Latest date: 20181113123833_  
 
-* Get all the unique data for the period from 01/01/2017 to 31/12/2017.  
+* Get all the unique robots.txt files records for the period from 01/01/2017 to 31/12/2017.  
 
 `$ ./cockroach.py robots -d example.com -s 20170101 -e 20171231`  
 
-* Or get data from 01/01/2018 to the current day.  
+* Or get the unique robots.txt files records from 01/01/2018 to the current day.  
 
 `$ ./cockroach.py robots -d example.com -s 20180101`
 
-* Or get data for the last 365 days  
+* Or get the unique robots.txt files records for the last 365 days  
 
 `$ ./cockroach.py robots -d example.com`  
 
