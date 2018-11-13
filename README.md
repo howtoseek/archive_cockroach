@@ -34,7 +34,7 @@ _Requires root privileges to install dependencies_
 The cockroach has several subcommands for different actions. Each subcommand has its own set of options.
 Type `cockroach.py action_command -h` to view additional options.  
  
-* **robots** - Get all robots.txt records for a domain
+* **robots** - Get all unique records of robots.txt files for a specified period of time  
 
 Options:  
 *-d example.com, --domain example.com* - Domain for which to search  
@@ -43,8 +43,32 @@ Historical data range(Default range: all last year):
 *-s yyyymmdd, --startdate yyyymmdd* - Start date in yyyymmdd format. For example 19700130  
 *-e yyyymmdd, --enddate yyyymmdd* - End date in yyyymmdd format. For example 19700130
 
-* **range** - Check available date range in history  
+* **range** - Check available date range in history for a domain  
 
 Options:  
 *-d example.com, --domain example.com* - Domain for which to search  
+
+## Example  
+
+* Check the date range for available data in the archive.  
+
+`$ ./cockroach.py range -d example.com`  
+
+Output:  
+_For the domain example.com available data for the period:   
+Earliest date: 20020120142510  
+Latest date: 20181113123833_  
+
+* Get all the unique data for the period from 01/01/2017 to 31/12/2017.  
+
+`$ ./cockroach.py robots -d example.com -s 20170101 -e 20171231`  
+
+* Or get data from 01/01/2018 to the current day.  
+
+`$ ./cockroach.py robots -d example.com -s 20180101`
+
+* Or get data for the last 365 days  
+
+`$ ./cockroach.py robots -d example.com`  
+
 
