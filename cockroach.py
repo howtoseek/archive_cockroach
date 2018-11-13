@@ -8,6 +8,7 @@ import asyncio
 import aiohttp
 import async_timeout
 
+
 def makeRequestToArchive(urlApi, requestParams):
     try:
         response = requests.get(urlApi, params=requestParams)
@@ -120,16 +121,18 @@ async def fetch(url, session):
 
 async def mainCycle(loop, urlList):
     tasks = []
-    responseList = []
     async with aiohttp.ClientSession(loop=loop) as session:
         for i in splitUrlList(urlList, DOWNLOAD_THREAD_NUMBER):
             for url in i:
                 task = asyncio.ensure_future(fetch(url, session))
                 tasks.append(task)
-            responses = await asyncio.gather(*tasks)
-            responseList.extend(responses)
+            responses = await asyncio.gather(*tasks, loop=loop)
 
-        return responseList
+            percentComplite = len(responses) * 100 // len(urlList)
+            barLine = '#' * percentComplite + '.' * (100 - percentComplite)
+            print('Complite: [{}] {} %\r'.format(barLine, percentComplite), end='')
+
+        return responses
 
 
 # Wayback CDX Server API
@@ -169,6 +172,11 @@ if __name__ == '__main__':
                 resultRobotsRecords.append(record)
 
         # print records
+        print('\nFound {0} unique robotx.txt records for the period from {1} to {2}\n{3}'.format(
+            len(resultRobotsRecords),
+            urlParams['from'],
+            urlParams['to'],
+            '-' * 100))
         for record in resultRobotsRecords:
             print(record)
 
