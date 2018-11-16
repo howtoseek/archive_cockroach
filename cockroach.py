@@ -12,7 +12,13 @@ import async_timeout
 def makeRequestToArchive(urlApi, requestParams):
     try:
         response = requests.get(urlApi, params=requestParams)
-        return response.text
+        if response.status_code != 200:
+            print('Could not find data in the archive for the domain {0}. Try searching manually on the web.archive.com'.format(
+                requestParams['url'].split('/')[0]
+            ))
+            exit(1)
+        else:
+            return response.text
     except requests.exceptions.ConnectTimeout:
         print('Something went wrong:\nConnection timeout occured!')
     except requests.exceptions.ReadTimeout:
